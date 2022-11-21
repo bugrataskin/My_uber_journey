@@ -6,26 +6,26 @@ select * from uber_data;
 -- This query shows that how many deliveries I picked up from and delivered to each suburb.
 CREATE TEMPORARY TABLE suburb_visit_breakdown
 SELECT 
-	adelaide_suburbs.locality,
+    adelaide_suburbs.locality,
     p.picked_up_quantity AS pickup_q,
     d.delivered_quantity AS delivery_q
 FROM adelaide_suburbs
 LEFT JOIN 
-	(SELECT
-		adelaide_suburbs.locality AS p_local,
-		sum(uber_data.quantity) as picked_up_quantity
-	FROM adelaide_suburbs INNER JOIN uber_data
-		ON adelaide_suburbs.locality = uber_data.pickup_location
-	GROUP BY 1) AS p
-		ON	p.p_local = adelaide_suburbs.locality
+     (SELECT
+	adelaide_suburbs.locality AS p_local,
+	 sum(uber_data.quantity) as picked_up_quantity
+      FROM adelaide_suburbs INNER JOIN uber_data
+	   ON adelaide_suburbs.locality = uber_data.pickup_location
+      GROUP BY 1) AS p
+	   ON	p.p_local = adelaide_suburbs.locality
 LEFT JOIN 
     (SELECT 
-		adelaide_suburbs.locality AS d_local,
-		SUM(uber_data.quantity) AS delivered_quantity
-	FROM adelaide_suburbs INNER JOIN uber_data
-		ON adelaide_suburbs.locality = uber_data.delivery_location
-	GROUP BY 1) AS d
-    ON	d.d_local = adelaide_suburbs.locality
+	adelaide_suburbs.locality AS d_local,
+	SUM(uber_data.quantity) AS delivered_quantity
+     FROM adelaide_suburbs INNER JOIN uber_data
+	   ON adelaide_suburbs.locality = uber_data.delivery_location
+     GROUP BY 1) AS d
+           ON	d.d_local = adelaide_suburbs.locality
 GROUP BY 1
 HAVING pickup_q IS NOT NULL OR delivery_q IS NOT NULL
 ORDER BY 2 DESC;
@@ -34,12 +34,12 @@ SELECT * FROM suburb_visit_breakdown;
 
 -- Total suburbs visited
 SELECT
-	COUNT(DISTINCT locality) AS total_suburbs_visited
+  COUNT(DISTINCT locality) AS total_suburbs_visited
 FROM suburb_visit_breakdown;
 
 
 -- Analysis 2: Average waiting time between orders for dinner time in terms of weekdays. (After 17:00). 
-	-- In UBER Eats, As you start your delivery, the next order request might drop on your screen before you finalise the current one. 
+    -- In UBER Eats, As you start your delivery, the next order request might drop on your screen before you finalise the current one. 
     -- So In this analysis part, I've tried to find average waiting time between orders in dinner time.
 
 -- Phase 1: Find last order request time and delivery time. This query shows the last order request time of each day. 
@@ -61,7 +61,8 @@ CREATE TEMPORARY TABLE online_time
 SELECT 
    date,
    ROUND(SUM(delivery_time_min),2) AS total_delivery_time,
-   ROUND(TIME_TO_SEC(TIMEDIFF(MAX(time_requested),MIN(time_requested)))/60,0) AS total_online_time_btw_all_orders,-- this column shows the total time between first order request time and last order request time.
+    -- this column shows the total time between first order request time and last order request time.
+   ROUND(TIME_TO_SEC(TIMEDIFF(MAX(time_requested),MIN(time_requested)))/60,0) AS total_online_time_btw_all_orders,
    COUNT(date) AS total_delivery_rides
 FROM uber_data
 WHERE time_requested >= '17:00:00'
@@ -74,13 +75,13 @@ SELECT * FROM online_time;
 
 CREATE TEMPORARY TABLE avg_idle_time
 SELECT 
-	online_time.date,
+    online_time.date,
     ROUND((online_time.total_online_time_btw_all_orders - online_time.total_delivery_time - the_last_order_request_time.delivery_time_min),2) AS idle_time,
     online_time.total_delivery_rides,
-	ROUND((online_time.total_online_time_btw_all_orders - online_time.total_delivery_time - the_last_order_request_time.delivery_time_min)/online_time.total_delivery_rides,2) AS avg_waiting_time_for_new_order
+    ROUND((online_time.total_online_time_btw_all_orders - online_time.total_delivery_time - the_last_order_request_time.delivery_time_min)/online_time.total_delivery_rides,2) AS avg_waiting_time_for_new_order
 FROM online_time
-	INNER JOIN the_last_order_request_time
-		ON online_time.date = the_last_order_request_time.date
+    JOIN the_last_order_request_time
+       ON online_time.date = the_last_order_request_time.date
 GROUP BY 1
 ORDER BY 2;      
  
@@ -89,14 +90,14 @@ ORDER BY 2;
  -- Phase 4: Extracting day names
  CREATE TEMPORARY TABLE day_info
  SELECT 
-	date,
+    date,
     dayname(date) AS day,
     CASE WHEN dayname(date) = 'Saturday' THEN 'Weekend' ELSE 'Weekday' END AS week_day_part
 FROM uber_data;
 
 -- Final Phase: Analysis of average waiting time between orders according to days
 SELECT
-	day AS week_part,
+    day AS week_part,
     AVG(avg_waiting_time_for_new_order) AS average_waiting_time
 FROM avg_idle_time
 	INNER JOIN day_info
